@@ -31,14 +31,19 @@ scroll_right = False
 scroll = 0
 scroll_speed = 1
 
-error_text = False #if load data error has occured
+doesntExist_text = False #if level data trying to load doesnt exist yet
+press_save = False #see if save button is pressed
+level_exists = False #checks if level data already exists
+press_reset = False #see if reset button is pressed
 
 #define colours
 GREEN = (144, 201, 120)
 WHITE = (255, 255, 255)
 RED = (200,25,25)
+BLUE = (0,112,255)
 
 font = pygame.font.SysFont('Futura', 30)
+font2 = pygame.font.SysFont('Futura', 24)
 
 #create empty tile list
 world_data = []
@@ -58,6 +63,11 @@ mountain_img = pygame.image.load('./img/Background/mountain.png').convert_alpha(
 sky_img = pygame.image.load('./img/Background/sky_cloud.png').convert_alpha()
 save_img = pygame.image.load('./img/save_btn.png').convert_alpha()
 load_img = pygame.image.load('./img/load_btn.png').convert_alpha()
+yes_img = pygame.image.load('./img/yes_btn.png').convert_alpha()
+no_img = pygame.image.load('./img/no_btn.png').convert_alpha()
+reset_img = pygame.transform.scale(pygame.image.load('./img/reset_btn.png').convert_alpha(), (80,42))
+orange_canvas = pygame.transform.scale(pygame.image.load('./img/orange_btn_canvas.png').convert_alpha(), (450,225))
+
 
 #store tiles in list
 img_list = []
@@ -69,6 +79,18 @@ for x in range(TILE_TYPES):
 def draw_text(text, font, text_col, x, y):
 	img = font.render(text, True, text_col)#have to take the text, convert to image, then blit that img on screen
 	screen.blit(img, (x, y))
+
+#resets an initialized world_data list; so that all tiles are -1 (empty) except for bottom row which is ground
+def clear_level(world_data):
+    #first for loop sets every tile empty
+    for x,row in enumerate(world_data):
+        for y, tile in enumerate(row):
+            world_data[x][y] = -1
+    #second for loop sets bottom row as ground
+    for tile in range(0,MAX_COLS):
+        world_data[ROWS - 1][tile]=0
+    
+    return world_data #returns the cleared world data
 
 def draw_bg():
     screen.fill(GREEN)
@@ -99,7 +121,10 @@ def draw_world():
     
 #create buttons
 save_button = button.Button(SCREEN_WIDTH // 2, SCREEN_HEIGHT + LOWER_MARGIN - 50, save_img, 1)
-load_button = button.Button(SCREEN_WIDTH // 2 + 200 , SCREEN_HEIGHT + LOWER_MARGIN - 50, load_img, 1)
+load_button = button.Button(SCREEN_WIDTH // 2 + 100 , SCREEN_HEIGHT + LOWER_MARGIN - 50, load_img, 1)
+reset_button = button.Button(SCREEN_WIDTH // 2 + 200 , SCREEN_HEIGHT + LOWER_MARGIN - 50, reset_img, 1)
+yes_button = button.Button(SCREEN_WIDTH // 4  + orange_canvas.get_size()[0]/8 -15  , SCREEN_HEIGHT //2, yes_img, 0.5)
+no_button = button.Button((SCREEN_WIDTH // 4) * 3 - orange_canvas.get_size()[0]/3 - 30 , SCREEN_HEIGHT //2 - 15, no_img, 0.5)
 
 #create buttons, this uses a prebuilt button() class from button.py
 button_list = []
@@ -128,11 +153,35 @@ while run:
     #save and load data
     if save_button.draw(screen):#if clicked
         #save level data
+        press_save = True
+        if path.exists(f'level{level}_data') and press_save:
+            #open the window for asking user to confirm overwrite previous data
+            level_exists = True
+            press_save = False
+        else:
+            #since level data doesn't exist, make new data for level immediately
+            pickle_out = open(f'level{level}_data', 'wb')# 'wb' opens file and allows us to write
+            pickle.dump(world_data,pickle_out)
+            pickle_out.close()
+            press_save = False
+            doesntExist_text = False
+    if level_exists:
+        screen.blit(orange_canvas,(SCREEN_WIDTH // 4  , SCREEN_HEIGHT //3))#width is /4 so it places top left of image at 1/4th of screen, thus it should end around 3/4th of screen
+        draw_text('Existing data already exists for this stage. Are you ', font2, WHITE, SCREEN_WIDTH//4 + orange_canvas.get_size()[0]/8 -25, SCREEN_HEIGHT//2 - 60) 
+        draw_text('sure you want to overwrite the pre-existing data?', font2, WHITE, SCREEN_WIDTH//4 + orange_canvas.get_size()[0]/8 -25 , SCREEN_HEIGHT//2 - 40 )
 
-        #below is pickle method
-        pickle_out = open(f'level{level}_data', 'wb')# 'wb' opens file and allows us to write
-        pickle.dump(world_data,pickle_out)
-        pickle_out.close()
+        if yes_button.draw(screen):
+            print("yes pressed")
+            #below is pickle method
+            pickle_out = open(f'level{level}_data', 'wb')# 'wb' opens file and allows us to write
+            pickle.dump(world_data,pickle_out)
+            pickle_out.close()
+            level_exists = False
+            doesntExist_text = False
+        if no_button.draw(screen):
+            print("no pressed")
+            level_exists = False
+            doesntExist_text = False
 
         #below is csv method
         """
@@ -141,6 +190,7 @@ while run:
             for row in world_data:#need to add data to the writer row by row
                 writer.writerow(row)
         """
+    
     if load_button.draw(screen):
         #reset scroll to start of level
         scroll = 0
@@ -152,9 +202,12 @@ while run:
             world_data=[]#empty our world_data to prepare for loading in new data_file
             pickle_in = open(f'level{level}_data', 'rb') #'rb' since we're reading the file
             world_data = pickle.load(pickle_in)
-            error_text = False
+            doesntExist_text = False
+        
+        #if file data doesn't exist yet, reset level to being fully empty except for ground at bottom row
         else:
-            error_text = True
+            world_data = clear_level(world_data)
+            doesntExist_text = True
         #below is csv method
         """
         with open(f'level{level}_data.csv', newline='') as csvfile: # no 'w' cus we are just reading file
@@ -164,8 +217,25 @@ while run:
                     world_data[x][y] = int(tile)
         """
 
-    if error_text:
-        draw_text(f'Level data could not be found', font, RED, 10, SCREEN_HEIGHT + LOWER_MARGIN -30)
+    if reset_button.draw(screen):
+        press_reset = True
+        print(press_reset)
+    if press_reset:
+        screen.blit(orange_canvas,(SCREEN_WIDTH // 4  , SCREEN_HEIGHT //3))#width is /4 so it places top left of image at 1/4th of screen, thus it should end around 3/4th of screen
+        draw_text('All tiles on the current level will be cleared', font2, WHITE, SCREEN_WIDTH//4 + orange_canvas.get_size()[0]/8 -25, SCREEN_HEIGHT//2 - 60) 
+        draw_text('from the screen. Do you want to procceed?', font2, WHITE, SCREEN_WIDTH//4 + orange_canvas.get_size()[0]/8 -25 , SCREEN_HEIGHT//2 - 40 )
+
+        if yes_button.draw(screen):
+            print("yes pressed")
+            #below is pickle method
+            world_data = clear_level(world_data)
+            press_reset = False
+        if no_button.draw(screen):
+            print("no pressed")
+            press_reset = False
+
+    if doesntExist_text:
+        draw_text(f'Level data does not exist yet', font, BLUE, 10, SCREEN_HEIGHT + LOWER_MARGIN -30)
 
     #draw tile panel and grid on right
     pygame.draw.rect(screen, GREEN, (SCREEN_WIDTH,0,SIDE_MARGIN, SCREEN_HEIGHT))
@@ -214,7 +284,7 @@ while run:
                 scroll_left = True
             if event.key == pygame.K_RIGHT:
                 scroll_right = True
-            if event.key == pygame.K_LSHIFT:
+            if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT :
                 scroll_speed = 5
             
         #release key
@@ -223,7 +293,7 @@ while run:
                 scroll_left = False
             if event.key == pygame.K_RIGHT:
                 scroll_right = False
-            if event.key == pygame.K_LSHIFT:
+            if event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
                 scroll_speed = 1
 
     pygame.display.update()
