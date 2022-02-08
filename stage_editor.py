@@ -171,7 +171,6 @@ while run:
         draw_text('sure you want to overwrite the pre-existing data?', font2, WHITE, SCREEN_WIDTH//4 + orange_canvas.get_size()[0]/8 -25 , SCREEN_HEIGHT//2 - 40 )
 
         if yes_button.draw(screen):
-            print("yes pressed")
             #below is pickle method
             pickle_out = open(f'level{level}_data', 'wb')# 'wb' opens file and allows us to write
             pickle.dump(world_data,pickle_out)
@@ -179,7 +178,6 @@ while run:
             level_exists = False
             doesntExist_text = False
         if no_button.draw(screen):
-            print("no pressed")
             level_exists = False
             doesntExist_text = False
 
@@ -219,19 +217,16 @@ while run:
 
     if reset_button.draw(screen):
         press_reset = True
-        print(press_reset)
     if press_reset:
         screen.blit(orange_canvas,(SCREEN_WIDTH // 4  , SCREEN_HEIGHT //3))#width is /4 so it places top left of image at 1/4th of screen, thus it should end around 3/4th of screen
         draw_text('All tiles on the current level will be cleared', font2, WHITE, SCREEN_WIDTH//4 + orange_canvas.get_size()[0]/8 -25, SCREEN_HEIGHT//2 - 60) 
         draw_text('from the screen. Do you want to procceed?', font2, WHITE, SCREEN_WIDTH//4 + orange_canvas.get_size()[0]/8 -25 , SCREEN_HEIGHT//2 - 40 )
 
         if yes_button.draw(screen):
-            print("yes pressed")
             #below is pickle method
             world_data = clear_level(world_data)
             press_reset = False
         if no_button.draw(screen):
-            print("no pressed")
             press_reset = False
 
     if doesntExist_text:
